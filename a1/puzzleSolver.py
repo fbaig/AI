@@ -5,10 +5,51 @@ Furqan Baig (109971799)
 
 import sys
 
-class State:
-    ''' State class to track each tile in the puzzle grid '''
+BLANK = -9
+
+class State(object):
+    ''' Singleton State class to track each tile in the puzzle grid '''
     
+    __instance = None
+    def __new__(cls, version):
+        if State.__instance is None:
+            State.__instance = object.__new__(cls)
+            State.__instance.version = version
+            # initilize grid
+            State.__instance.Grid = {}
+        return State.__instance
+
+
+    def __init__(self, initFileName):
+        # read in initial values from input file
+        # CHANGE: hardcoded for now
+
+        self.setTileValue(0,0, 1)
+        self.setTileValue(0,1, 3)
+        self.setTileValue(0,2, BLANK)
+        self.setTileValue(1,0, 4)
+        self.setTileValue(1,1, 2)
+        self.setTileValue(1,2, 5)
+        self.setTileValue(2,0, 7)
+        self.setTileValue(2,1, 8)
+        self.setTileValue(2,2, 6)
+
+    def setTileValue(self, i, j, val):
+        if i < 0 or i > self.__instance.version or j < 0 or j > self.__instance.version:
+            print ('ERROR')
+        self.__instance.Grid[i, j] = val
+
+    def getTileValue(self, i, j):
+        return self.__instance.Grid[i, j]
+
+    def printGrid(self):
+        print (self.__instance.Grid)
+        #for i in xrange(0, self.__instance.version):
+        #    for j in xrange(0, self.__instance.version):
+                
     
+    def __getattr__(self, name):
+        return getattr(self.__instance, name)
 
 if __name__ == '__main__':
 
@@ -42,3 +83,8 @@ if __name__ == '__main__':
         
     print ('InputFilePath: {}'.format(inputPath))
     print ('OutputFilePath: {}'.format(outputPath))
+
+    s = State(3)
+    print('version: {}'.format(s.version))
+    
+    s.printGrid()
