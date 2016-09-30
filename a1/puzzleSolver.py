@@ -9,6 +9,7 @@ BLANK = -9
 GOAL_STATE = None
 
 class Move:
+    ''' Essentially an Enum to represent move directions '''
     LEFT, RIGHT, UP, DOWN = range(4)
 
 class State(object):
@@ -61,7 +62,22 @@ class State(object):
             raise ValueError('Invalid move: Moving out of bound')
         
         # Valid move, swap blank with value from desired direction
-        print ('Moving ....')
+        if (direction == Move.LEFT):
+            move_index_i, move_index_j = self.bi, (self.bj-1)
+        elif (direction == Move.RIGHT):
+            move_index_i, move_index_j = self.bi, (self.bj+1)
+        elif (direction == Move.UP):
+            move_index_i, move_index_j = (self.bi-1), self.bj
+        elif (direction == Move.DOWN):
+            move_index_i, move_index_j = (self.bi+1), self.bj
+
+        move_index_value = self.Grid[move_index_i][move_index_j]
+
+        # swap values
+        self.Grid[move_index_i][move_index_j] = BLANK
+        self.Grid[self.bi][self.bj] = move_index_value
+        # update blank index
+        self.bi, self.bj = move_index_i, move_index_j
     
     def setTileValue(self, i, j, val):
         # check for out of bound indices
@@ -126,23 +142,19 @@ if __name__ == '__main__':
 
     ###################################################################################################
     
-    s = State(3, '3.txt')
+    s = State(puzzle, '3.txt')
     s.printGrid()
 
+    s.move(Move.LEFT)
+    s.move(Move.DOWN)
+    s.move(Move.RIGHT)
+    s.move(Move.DOWN)
+    
+    s.printGrid()
+    
     global GOAL
     GOAL = State(puzzle)
-    GOAL.printGrid()
-    print(GOAL.Grid)
 
-    g = State(4)
-
-
-    print (s.bi)
-    print (s.bj)
-    
-    if g == GOAL:
-        print ('Goal ...')
-    else:
-        print ('Still working ....')
-
+    if s == GOAL:
+        print('YAAAAAAYYY ....')
     
