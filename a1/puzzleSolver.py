@@ -87,7 +87,8 @@ class State(object):
                     # vertical distance to goal
                     dy = j - goal_j
                     self.h_cost += abs(dx) + abs(dy)
-                    
+        #self.h_cost = self.h_cost * 2
+        
     def calculate_h(self):
         self.manhatan_distance()
     
@@ -246,16 +247,12 @@ if __name__ == '__main__':
     #######################################################################################
     
     s = State(puzzle, '3.txt')
-    s.calculate_h()
-    print (str(s))
-    print('h cost: ' + str(s.h_cost))
-    
+    print('Start State: ' + str(s))
     
     global GOAL
     GOAL = State(puzzle)
 
     GOAL.calculate_h()
-    print('h cost: ' + str(GOAL.h_cost))
     
     a = Algo(s)
     a.bfs()
