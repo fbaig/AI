@@ -65,31 +65,15 @@ class State(object):
                 return (i, x.index(val))
         return None
 
-    def distance(self):
+    def calculate_h(self):
         ''' A simple heuristic function based on the number of misplaced tiles '''
         for i in range(self.version):
             for j in range(self.version):
-                # ignore blank (last index)
+                # ignore blank - last index
                 if i==self.version-1 and j==self.version-1:
                     continue
                 elif self.version*i+j+1 != self.Grid[i][j]:
                     self.h_cost += 1
-
-    def manhatan_distance(self):
-        ''' Somewhat better heuristic than simple distance '''
-        for i in range(self.version):
-            for j in range(self.version):
-                if self.Grid[i][j] != -9:
-                    goal_i = int((self.Grid[i][j]-1)/self.version)
-                    goal_j = int((self.Grid[i][j]-1)%self.version)
-                    # horizontal distance to goal 
-                    dx = i - goal_i
-                    # vertical distance to goal
-                    dy = j - goal_j
-                    self.h_cost += abs(dx) + abs(dy)
-                    
-    def calculate_h(self):
-        self.manhatan_distance()
     
     def move(self, direction):
         ''' 
@@ -157,9 +141,7 @@ class Algo():
     def __init__(self, start):
         self.start = start
         self.start.g_cost = 0
-        self.states_count = 0
-        
-        
+
     def track_path(self, goal):
         path = []
         node = goal
@@ -171,13 +153,10 @@ class Algo():
         path.reverse()
         for s in path:
             print (str(s.direction) + ', ')
-
-        print('Total states explored: ' + str(self.states_count))
         
     def apply_action(self, current, move):
         new = current.move(move)
         if new and new not in self.explored:
-            self.states_count += 1
             new.g_cost = current.g_cost + 1
             # calculate h cost from heuristic function
             new.calculate_h()
