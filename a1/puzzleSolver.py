@@ -7,9 +7,10 @@ import sys
 
 BLANK = -9
 GOAL_STATE = None
+MAX = float('inf')
 
 from enum import Enum
-Move = Enum('Move', 'LEFT RIGHT UP DOWN')
+Move = Enum('Move', 'L R U D')
 
 class State(object):
     ''' State class to track each tile in the puzzle grid '''
@@ -87,10 +88,11 @@ class State(object):
                     # vertical distance to goal
                     dy = j - goal_j
                     self.h_cost += abs(dx) + abs(dy)
-        #self.h_cost = self.h_cost * 2
+        self.h_cost = self.h_cost
         
     def calculate_h(self):
-        self.manhatan_distance()
+        #self.manhatan_distance()
+        self.distance()
     
     def move(self, direction):
         ''' 
@@ -102,20 +104,20 @@ class State(object):
         '''
 
         # Out of bound movement handling
-        if (direction == Move.LEFT and self.bj == 0 or 
-            direction == Move.RIGHT and self.bj == self.version-1 or 
-            direction == Move.UP  and self.bi == 0 or 
-            direction == Move.DOWN and self.bi == self.version-1):
+        if (direction == Move.L and self.bj == 0 or 
+            direction == Move.R and self.bj == self.version-1 or 
+            direction == Move.U  and self.bi == 0 or 
+            direction == Move.D and self.bi == self.version-1):
             return None
         
         # Valid move, swap blank with value from desired direction
-        if (direction == Move.LEFT):
+        if (direction == Move.L):
             move_index_i, move_index_j = self.bi, (self.bj-1)
-        elif (direction == Move.RIGHT):
+        elif (direction == Move.R):
             move_index_i, move_index_j = self.bi, (self.bj+1)
-        elif (direction == Move.UP):
+        elif (direction == Move.U):
             move_index_i, move_index_j = (self.bi-1), self.bj
-        elif (direction == Move.DOWN):
+        elif (direction == Move.D):
             move_index_i, move_index_j = (self.bi+1), self.bj
 
         move_index_value = self.Grid[move_index_i][move_index_j]
@@ -129,8 +131,12 @@ class State(object):
         # update blank index
         #grid.bi, grid.bj = move_index_i, move_index_j
 
+        # generate new state with given move direction
         return State(self.version, grid=grid, parent=self, direction=direction)
-        
+
+    def f_value(self):
+        return self.g_cost + self.h_cost;
+    
     def __repr__(self):
         ret = '\n------------------------\n'
         for i in range(self.version):
@@ -145,7 +151,7 @@ class State(object):
         return ret
 
     def __lt__(self, state2):
-        return (self.g_cost + self.h_cost) < (state2.g_cost + state2.h_cost)
+        return self.f_value() < state2.f_value()
         
     def __eq__(self, state2):
         ''' Overriden equality operator to check states if they are equal based on their grid values '''
@@ -155,10 +161,11 @@ class State(object):
 
 class Algo():
 
-    def __init__(self, start):
+    def __init__(self, start, outfilePath):
         self.start = start
         self.start.g_cost = 0
         self.states_count = 0
+        self.outfilePath = outfilePath
         
         
     def track_path(self, goal):
@@ -170,24 +177,36 @@ class Algo():
             node = node.parent
 
         path.reverse()
-        for s in path:
-            print (str(s.direction) + ', ')
-
+        # write to file
+        with open(self.outfilePath, 'w') as f:
+            f.write(','.join(str(s.direction.name) for s in path))
+    
         print('Total states explored: ' + str(self.states_count))
-        
-    def apply_action(self, current, move):
+        print('Goal Depth: ' + str(goal.g_cost))
+
+    def __gen_node(self, current, move):
+        '''
+        Generate new node by applying given move direction to current node
+        Additionally initialize g() and h() costs
+        g(): 1 + cost(current) - Actual physical cost from start to this node
+        h(): Heristic function value
+        '''
         new = current.move(move)
-        if new and new not in self.explored:
-            self.states_count += 1
+        if new:
             new.g_cost = current.g_cost + 1
-            # calculate h cost from heuristic function
             new.calculate_h()
-            if new == GOAL:
-                self.track_path(new)
-                return True
-            self.frontier.put(new)
-            
-    def bfs(self):
+        return new
+    
+    def gen_nodes(self, current):
+        ret = []
+        ret.append(self.__gen_node(current, Move.L))
+        ret.append(self.__gen_node(current, Move.R))
+        ret.append(self.__gen_node(current, Move.U))
+        ret.append(self.__gen_node(current, Move.D))
+        return ret
+    
+    ######################################### Simple A-Start ##################################
+    def a_star(self):
         ''' Simple blind Breath First Search '''
         import queue as Q
 
@@ -198,19 +217,67 @@ class Algo():
         while not self.frontier.empty():
             current = self.frontier.get()
             if current == GOAL:
-                print ('GOAL REACHED ...')
+                self.track_path(current)
+                print('Goal: ' + str(current))
                 return True
             self.explored.append(current)
-            # generate all possible states by moving blank L, R, U, D
-            if self.apply_action(current, Move.LEFT): return True
-            elif self.apply_action(current, Move.RIGHT): return True
-            elif self.apply_action(current, Move.UP): return True
-            elif self.apply_action(current, Move.DOWN): return True
+            # generate all possible nodes from current state
+            for node in self.gen_nodes(current):
+                if node and node not in self.explored:
+                    self.states_count += 1
+                    if node == GOAL:
+                        self.track_path(node)
+                        print('Goal: ' + str(node))
+                        return True
+                    self.frontier.put(node)
+        # unsolvable puzzle
+        print('Puzzle not solvable: ' + str(self.start))
+        return False
         
     def printFrontier(self):
         while not self.frontier.empty():
             print(self.frontier.get())
-        
+            
+    ################################## Memory Bounded #######################################
+    def ida_star(self):
+        ''' 
+        Memory bounded algorithm 
+        Reference: https://algorithmsinsight.wordpress.com/graph-theory-2/ida-star-algorithm-in-general/
+        '''
+        self.start.calculate_h()
+        threshold=self.start.h_cost
+
+        while True:
+            result = self.ida_star_driver(self.start, threshold)
+            if result == True:
+                return True
+            elif result == MAX:
+                print('Puzzle not solvable: ' + str(self.start))
+                return False
+            threshold = result
+
+    def ida_star_driver(self, current, threshold):
+        '''
+        IDA* recursive driver function
+        '''
+        f = current.f_value()
+        if f > threshold:
+            return f
+        if current == GOAL:
+            self.track_path(current)
+            print('IDA* Goal Found: ' + str(current))
+            return True
+        min = MAX
+        for node in self.gen_nodes(current):
+            if node:
+                self.states_count += 1
+                tmp = self.ida_star_driver(node, threshold)
+                if tmp == True:
+                    return True
+                if tmp < min:
+                    min = tmp
+        return min
+    
 if __name__ == '__main__':
 
     if len(sys.argv) != 5:
@@ -246,15 +313,25 @@ if __name__ == '__main__':
 
     #######################################################################################
     
-    s = State(puzzle, '3.txt')
-    print('Start State: ' + str(s))
+    start = State(puzzle, inputPath)
+    print('Start State: ' + str(start))
     
     global GOAL
     GOAL = State(puzzle)
-
     GOAL.calculate_h()
     
-    a = Algo(s)
-    a.bfs()
+    a = Algo(start, outputPath)
+    if algo == 1:
+        a.a_star()
+    else:
+        #a.a_star()
+        a.ida_star()
 
-    
+    import resource
+    def using(point=""):
+        usage=resource.getrusage(resource.RUSAGE_SELF)
+        return '''%s: usertime=%s systime=%s mem=%s mb
+        '''%(point,usage[0],usage[1],
+             (usage[2]*resource.getpagesize())/1000000.0 )
+
+    print(using('End'))
