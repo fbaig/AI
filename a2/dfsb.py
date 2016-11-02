@@ -8,9 +8,6 @@ from collections import defaultdict
 
 INVALID_COLOR = -1
 
-# v1 and v2 in a given constaint can't have same colors
-Constraint = namedtuple('Constraint', 'v1 v2')
-
 class Node(object):
     
     def __init__(self, name, domain, color=INVALID_COLOR):
@@ -19,10 +16,7 @@ class Node(object):
         self.color = color
 
     def __repr__(self):
-        return str(self.name) + '\t' + str(self.color)
-
-
-    
+        return str(self.name) + '\t' + str(self.color) + '\t' + str(self.domain)
     
 class Graph:
     '''
@@ -30,32 +24,60 @@ class Graph:
     Value is the color of the node
     '''
     def __init__(self, constraints, nodes, node_name=None, color=None):
-        self.constraints = constraints
+        self.constraints = dict(constraints)
         import copy
         self.nodes = copy.deepcopy(nodes)
-        #self.nodes = dict(nodes)
-        #self.nodes = nodes.copy()
 
         if node_name != None and color != None:
             #print('Assigning color: %d to node: %d in init'%(node, color))
             self.nodes[node_name].color = color
+
+        self.prune_domains()
+
+    def solution_exists(self):
+        for v in self.nodes.values():
+            if not v.domain:
+                return False
+        return True
+    
+    def prune_domains(self):
+        for k,v in self.constraints.items():
+            if self.nodes[k].color != INVALID_COLOR and \
+               self.nodes[k].color in self.nodes[v].domain:
+                self.nodes[v].domain.remove(self.nodes[k].color)
+
+            if self.nodes[v].color != INVALID_COLOR and \
+               self.nodes[v].color in self.nodes[k].domain:
+                self.nodes[k].domain.remove(self.nodes[v].color)
             
+    def get_next_variable(self, mrv=False):
+        if mrv:
+            # calculate the variable with minimum remaining values
+            ret = None
+            min_domain_size = sys.maxsize
+            for k,v in self.nodes.items():
+                if v.color == INVALID_COLOR and len(v.domain) < min_domain_size:
+                    ret = k
+                    min_domain_size = len(v.domain)
+            return ret
+        else:
+            # simply return the next variable which does not have a valid color
+            for k,v in self.nodes.items():
+                if v.color == INVALID_COLOR: return k
+        return None
+    
     def assignColor(self, node_name, color):
         # check for constraints
-        for c in self.constraints:
-            c1 = self.nodes[c.v1]
-            c2 = self.nodes[c.v2]
-            
-            #print ('c1: ' + str(c1))
-            #print ('c2: ' + str(c2))
-            # 
-            if c1.name == node_name and c2.color == color:
+        for k,v in self.constraints.items():
+            if k == node_name and self.nodes[v].color == color:
                 return None
-            elif c2.name == node_name and c1.color == color:
+            elif v == node_name and self.nodes[k].color == color:
                 return None
 
         # all is well, assign color
-        return Graph(self.constraints, nodes=self.nodes, node_name=node_name, color=color)
+        g = Graph(self.constraints, nodes=self.nodes, node_name=node_name, color=color)
+        if g.solution_exists(): return g
+        return None
         
         
     def isGoal(self):
@@ -71,36 +93,29 @@ class Graph:
         return ret
     
     def __eq__(self, other):
-        #print('checking eq\n' + str(self) + str(other))
-        # for n, o in zip(self.nodes.values(), other.nodes.values()):
-        #     if n.color != o.color: return False
         if self.nodes == other.nodes: return True
         return False
-            
-        # for k in self.nodes:
-        #     if self.nodes[k].color != other.nodes[k].color: return False
-        # return True
-            
 
 class DFSB:
 
     def __init__(self, variablesCount, graph):
         self.vCount = variablesCount
         self.graph = graph
-
+        
     def color(self):
 
-        variables = list(graph.nodes.keys())
-        
+        states_explored = 0
         # simple DFS
         frontier = []
         explored = []
         # since we start with an empty state for graph coloring, it can never be goal
         frontier.append(self.graph)
         while frontier:
+            states_explored +=1
             current = frontier.pop()
             explored.append(current)
-            v = variables.pop()
+            
+            v = current.get_next_variable(mrv=False)
 
             # print ('Curret: \n%s'%current)
             # print ('Node: %d'%v)
@@ -108,15 +123,17 @@ class DFSB:
             
             for c in self.graph.nodes[v].domain:
                 g = current.assignColor(v, c)
-                #print(str(g))
                 if g:
                     if g.isGoal():
                         print('Goal: \n' + str(g))
+                        print ('States Explored: %d'%states_explored)
                         return True
+                    # elif not g.solution_exists():
+                    #     sys.exit('No solution Exists')
                     elif g not in frontier and g not in explored:
                         frontier.append(g)
         
-        print ('bla')
+        print ('No solution exist')
 
 if __name__ == '__main__':
     if len(sys.argv) != 4:
@@ -130,7 +147,7 @@ if __name__ == '__main__':
     elif mode == 1: print('Improved DFSB')
     else: sys.exit('Invalid mode option')
 
-    constraints = []
+    constraints = {}
     
     # get input values from file
     with open(inputPath, 'r') as f:
@@ -140,7 +157,8 @@ if __name__ == '__main__':
         K = int(lines[0].split()[2])
         lines = lines[1:]
         for line in lines:
-            constraints.append(Constraint(v1=int(line.split()[0]), v2=int(line.split()[1])))
+            constraints[int(line.split()[0])] = int(line.split()[1])
+            #constraints.append(Constraint(v1=int(line.split()[0]), v2=int(line.split()[1])))
 
     # generate color domain
     color_domain = []
@@ -154,7 +172,7 @@ if __name__ == '__main__':
     
     graph = Graph(constraints, nodes)
 
-    #print( constraints)
+    print( constraints)
     #print(nodes)
     #print(graph)
     
