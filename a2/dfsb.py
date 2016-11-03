@@ -52,12 +52,32 @@ if __name__ == '__main__':
     for i in range(0, N):
         # initialize all nodes with invalid color and all colors as domain
         nodes[i] = Node(i, color_domain)
-    
-    graph = Graph(constraints, nodes)
 
-    print( constraints)
+    if mode == 0:
+        graph = Graph(constraints, nodes, simple_dfs=True)
+    else:
+        graph = Graph(constraints, nodes, simple_dfs=False)
+    
+    #print( constraints)
     #print(nodes)
     #print(graph)
-    
-    dfsb = DFSB(N, graph)
+
+    if mode == 0:
+        dfsb = DFSB(graph, simple=True)
+    else:
+        dfsb = DFSB(graph, simple=False)
     dfsb.color()
+
+
+    # from search import MinConflicts
+    # mc = MinConflicts(graph)
+    # mc.color()
+
+    import resource
+    def using(point=""):
+        usage=resource.getrusage(resource.RUSAGE_SELF)
+        return '''%s: usertime=%s systime=%s mem=%s mb
+        '''%(point,usage[0],usage[1],
+             (usage[2]*resource.getpagesize())/1000000.0 )
+
+    print(using('End'))
