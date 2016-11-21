@@ -4,7 +4,9 @@
 
 from __future__ import print_function
 
-from sklearn.datasets import fetch_20newsgroups
+#from sklearn.datasets import fetch_20newsgroups
+from sklearn.datasets import load_files
+
 from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.feature_extraction.text import HashingVectorizer
@@ -27,71 +29,56 @@ import numpy as np
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(levelname)s %(message)s')
 
-# parse commandline arguments
-op = OptionParser()
-op.add_option("--lsa",
-              dest="n_components", type="int",
-              help="Preprocess documents with latent semantic analysis.")
-op.add_option("--no-minibatch",
-              action="store_false", dest="minibatch", default=True,
-              help="Use ordinary k-means algorithm (in batch mode).")
-op.add_option("--no-idf",
-              action="store_false", dest="use_idf", default=True,
-              help="Disable Inverse Document Frequency feature weighting.")
-op.add_option("--use-hashing",
-              action="store_true", default=False,
-              help="Use a hashing feature vectorizer")
-op.add_option("--n-features", type=int, default=10000,
-              help="Maximum number of features (dimensions)"
-                   " to extract from text.")
-op.add_option("--verbose",
-              action="store_true", dest="verbose", default=False,
-              help="Print progress reports inside k-means algorithm.")
+# # parse commandline arguments
+# op = OptionParser()
+# op.add_option("--lsa",
+#               dest="n_components", type="int",
+#               help="Preprocess documents with latent semantic analysis.")
+# op.add_option("--no-minibatch",
+#               action="store_false", dest="minibatch", default=True,
+#               help="Use ordinary k-means algorithm (in batch mode).")
+# op.add_option("--no-idf",
+#               action="store_false", dest="use_idf", default=True,
+#               help="Disable Inverse Document Frequency feature weighting.")
+# op.add_option("--use-hashing",
+#               action="store_true", default=False,
+#               help="Use a hashing feature vectorizer")
+# op.add_option("--n-features", type=int, default=10000,
+#               help="Maximum number of features (dimensions)"
+#                    " to extract from text.")
+# op.add_option("--verbose",
+#               action="store_true", dest="verbose", default=False,
+#               help="Print progress reports inside k-means algorithm.")
 
-print(__doc__)
-op.print_help()
+# print(__doc__)
+# op.print_help()
 
-(opts, args) = op.parse_args()
-if len(args) > 0:
-    op.error("this script takes no arguments.")
-    sys.exit(1)
+# (opts, args) = op.parse_args()
+# if len(args) > 0:
+#     op.error("this script takes no arguments.")
+#     sys.exit(1)
 
-
-    
-categories = [
-    'alt.atheism',
-    'talk.religion.misc',
-    'comp.graphics',
-    'sci.space',
-]
-# Uncomment the following to do the analysis on all the categories
-#categories = None
-
-
-# print("Loading 20 newsgroups dataset for categories:")
-# print(categories)
-
-# dataset = fetch_20newsgroups(subset='all', categories=categories,
-#                              shuffle=True, random_state=42)
-#                              #download_if_missing=False)
-
-############### BAIG WAS HERE #############
+############### Load Training Dataset #############
 train_data_path = '/home/bmi-baig/Downloads/cse537-AI/AI/a3/selected_20NewsGroup/Training'
 print ('Loading dataset from path: %s' % train_data_path)
-from sklearn.datasets import load_files
-dataset = load_files(container_path=train_data_path)
 
-###########################################
-                             
-print("%d documents" % len(dataset.data))
-print("%d categories" % len(dataset.target_names))
+train_dataset = load_files(container_path=train_data_path, encoding='latin-1')
+
+print("%d documents" % len(train_dataset.data))
+print("%d categories" % len(train_dataset.target_names))
 print()
 
-labels = dataset.target
-true_k = np.unique(labels).shape[0]
+labels = train_dataset.target
 
-print (dataset.target_names)
-print (true_k)
+print (train_dataset.target_names)
+
+############### Extract features ##################
+t0 = time()
+print ('Extracting features using TF-IDF')
+vectorizer = TfidfVectorizer(stop_words='english')
+X_train = vectorizer.fit_transform(train_dataset.data)
+print("done in %fs" % (time() - t0))
+
 
 # print("Extracting features from the training dataset using a sparse vectorizer")
 # t0 = time()
