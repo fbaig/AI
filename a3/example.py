@@ -6,6 +6,8 @@ from __future__ import print_function
 
 #from sklearn.datasets import fetch_20newsgroups
 from sklearn.datasets import load_files
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.pipeline import Pipeline
 
 from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -24,6 +26,38 @@ from time import time
 
 import numpy as np
 
+
+# function to extract features
+def extract_features(dataset, _stop_words='', vtype='count'):
+    if vtype == 'count':
+        print ('Extracting features using BOW')
+        vectorizer = CountVectorizer(stop_words=_stop_words)
+    elif vtype == 'tfidf':
+        print ('Extracting features using TF-IDF')
+        vectorizer = TfidfVectorizer(stop_words=_stop_words)
+    else:
+        sys.exit('Invalid feature extractor')
+
+    vectors_train = vectorizer.fit_transform(dataset)
+    return vectorizer, vectors_train
+
+def train_classifier(train_vectors, train_dataset, ctype='nb'):
+    if ctype == 'nb':
+        print ('Training Naive Bayes Classifier')
+        classifier = MultinomialNB(alpha=0.01)
+        classifier.fit(train_vectors, train_dataset.target)
+    elif ctype == 'svm':
+        print ('Training SVM Classifier')
+        sys.exit('SVM not implemented')
+    elif ctype == 'lg':
+        print ('Training Logistic Regression Classifier')
+        sys.exit('Logistic not implemented')
+    elif ctype == 'rf':
+        print ('Training Random Forest Classifier')
+        sys.exit('Random Forest not implemented')
+        
+    return classifier
+    
 
 # Display progress logs on stdout
 logging.basicConfig(level=logging.INFO,
@@ -60,6 +94,7 @@ logging.basicConfig(level=logging.INFO,
 
 ############### Load Training Dataset #############
 train_data_path = '/home/bmi-baig/Downloads/cse537-AI/AI/a3/selected_20NewsGroup/Training'
+test_data_path = '/home/bmi-baig/Downloads/cse537-AI/AI/a3/selected_20NewsGroup/Test'
 print ('Loading dataset from path: %s' % train_data_path)
 
 train_dataset = load_files(container_path=train_data_path, encoding='latin-1')
@@ -67,17 +102,72 @@ train_dataset = load_files(container_path=train_data_path, encoding='latin-1')
 print("%d documents" % len(train_dataset.data))
 print("%d categories" % len(train_dataset.target_names))
 print()
-
 labels = train_dataset.target
 
-print (train_dataset.target_names)
+# just to test
+# 'category integer id' for each sample in data is stored in 'target' attribute as list
+# print (train_dataset.data[1100])
+# print (train_dataset.target_names[train_dataset.target[1100]])
 
-############### Extract features ##################
-t0 = time()
-print ('Extracting features using TF-IDF')
-vectorizer = TfidfVectorizer(stop_words='english')
-X_train = vectorizer.fit_transform(train_dataset.data)
-print("done in %fs" % (time() - t0))
+# ############### Extract features ##################
+
+# vectorizer, vectors = extract_features(dataset=train_dataset.data,
+#                                  _stop_words='english',
+#                                  vtype='tfidf') 
+# ############## Train Naive Bayes (Classifier) #####
+# classifier = train_classifier(train_vectors=vectors,
+#                               train_dataset=train_dataset,
+#                               ctype='nb')
+
+
+'''
+Naive Bayes
+'''
+# classifier = Pipeline([('vectorizer', TfidfVectorizer(stop_words='english')),
+#                        ('transformer', TfidfTransformer()),
+#                        ('classifier', MultinomialNB(alpha=0.01))])
+
+'''
+Logistic Regression
+Hyperparameters:
+    - Regularization constant
+    - iterations count
+'''
+from sklearn.linear_model import LogisticRegression
+_reg_constant = 1
+_iter_count = 2
+classifier = Pipeline([('vectorizer', TfidfVectorizer(stop_words='english')),
+                       ('transformer', TfidfTransformer()),
+                       ('classifier', LogisticRegression(C=_reg_constant, max_iter=_iter_count))])
+
+'''
+SVM
+Hyperparameters:
+    - Regularization constant
+    - Kernels (Linear, Polynomial, RBF)
+'''
+# from sklearn import svm
+# _reg_constant = 2
+# _kernel = 'linear' # rbf, linear, poly
+# classifier = Pipeline([('vectorizer', TfidfVectorizer(stop_words='english')),
+#                        ('transformer', TfidfTransformer()),
+#                        ('classifier', svm.SVC(C=_reg_constant, kernel=_kernel, degree=3))])
+
+_ = classifier.fit(train_dataset.data, train_dataset.target)
+############## Test Data ##########################
+test_dataset = load_files(container_path=test_data_path, encoding='latin-1')
+# vectors_test = vectorizer.transform(test_dataset.data)
+
+############## Predict ############################
+print ('Predicting Test data')
+predict = classifier.predict(test_dataset.data)
+
+import numpy as np
+print ('Accuracy: %f' % np.mean(predict == test_dataset.target))
+# print (metrics.f1_score(test_dataset.target, pred, average='macro'))
+
+
+
 
 
 # print("Extracting features from the training dataset using a sparse vectorizer")
