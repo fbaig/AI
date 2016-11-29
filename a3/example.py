@@ -8,6 +8,7 @@ from __future__ import print_function
 from sklearn.datasets import load_files
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import Pipeline
+from sklearn.feature_extraction.text import CountVectorizer
 
 from sklearn.decomposition import TruncatedSVD
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -25,7 +26,6 @@ import sys
 from time import time
 
 import numpy as np
-
 
 # function to extract features
 def extract_features(dataset, _stop_words='', vtype='count'):
@@ -58,7 +58,8 @@ def train_classifier(train_vectors, train_dataset, ctype='nb'):
         
     return classifier
     
-
+#def preprocess(s):
+    
 # Display progress logs on stdout
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(levelname)s %(message)s')
@@ -119,13 +120,43 @@ labels = train_dataset.target
 #                               train_dataset=train_dataset,
 #                               ctype='nb')
 
+class Config:
+    def __init__(self, classifier, vectorizer='count', ngram=1, stopwords=None, lowercase=False):
+        self.ngram = ngram
+        self.stopwords = stopwords
+        self.lowercase = lowercase
+        self.classifier = classifier
+        
+        self.transformer = TfidfTransformer()
+        # if vectorizer == 'count':
+        #     self.vectorizer = CountVectorizer(lowercase=True, stop_words='english', ngram_range=(1, ngram))
+        # elif vectorizer == 'tfidf':
+        #     self.vectorizer = TfidfVectorizer(lowercase=True, stop_words='english', ngram_range=(1, ngram))
+        if vectorizer == 'count':
+            self.vectorizer = CountVectorizer(lowercase=lowercase, stop_words=stopwords, ngram_range=(1, ngram))
+        elif vectorizer == 'tfidf':
+            self.vectorizer = TfidfVectorizer(lowercase=lowercase, stop_words=stopwords, ngram_range=(1, ngram))
+        else:
+            self.vectorizer = None
 
+    def __repr__(self):
+        ret = 'n-gram: %d\nvectorizer: %s\n' % (self.ngram, type(self.vectorizer).__name__ )
+        classifier_str = type(self.classifier).__name__
+        if classifier_str == 'LogisticRegression':
+            classifier_str += '(iterations: %s)' % str(self.classifier.max_iter)
+        elif classifier_str == 'SVC':
+            classifier_str += '(kernel: %s)' % str(self.classifier.kernel)
+        elif classifier_str == 'RandomForestClassifier':
+            classifier_str += '(# trees: %s, # features: %s)' % (str(self.classifier.n_estimators), str(self.classifier.max_features))
+
+        ret += 'classifier: %s\n' % classifier_str
+        return ret
+
+# classifier models
 '''
 Naive Bayes
 '''
-# classifier = Pipeline([('vectorizer', TfidfVectorizer(stop_words='english')),
-#                        ('transformer', TfidfTransformer()),
-#                        ('classifier', MultinomialNB(alpha=0.01))])
+NB = MultinomialNB()
 
 '''
 Logistic Regression
@@ -136,9 +167,7 @@ Hyperparameters:
 from sklearn.linear_model import LogisticRegression
 _reg_constant = 1
 _iter_count = 2
-classifier = Pipeline([('vectorizer', TfidfVectorizer(stop_words='english')),
-                       ('transformer', TfidfTransformer()),
-                       ('classifier', LogisticRegression(C=_reg_constant, max_iter=_iter_count))])
+LR = LogisticRegression(C=_reg_constant, max_iter=_iter_count)
 
 '''
 SVM
@@ -146,25 +175,62 @@ Hyperparameters:
     - Regularization constant
     - Kernels (Linear, Polynomial, RBF)
 '''
-# from sklearn import svm
-# _reg_constant = 2
-# _kernel = 'linear' # rbf, linear, poly
-# classifier = Pipeline([('vectorizer', TfidfVectorizer(stop_words='english')),
-#                        ('transformer', TfidfTransformer()),
-#                        ('classifier', svm.SVC(C=_reg_constant, kernel=_kernel, degree=3))])
+from sklearn import svm
+_reg_constant = 2
+_kernel = 'linear' # rbf, linear, poly
+SVM = svm.SVC(C=_reg_constant, kernel=_kernel, degree=3)
+
+'''
+Random Forest
+Hyperparameters:
+    - Number of trees
+    - Number of features
+'''
+from sklearn.ensemble import RandomForestClassifier
+_trees_count = 10
+_features_count = 8
+RF = RandomForestClassifier(n_estimators=_trees_count, max_features=2)
+
+# configurations
+BASELINE_NB_UNI = Config(classifier=NB)
+BASELINE_NB_BI = Config(classifier=NB, ngram=2)
+
+BASELINE_LR_UNI = Config(classifier=LR)
+BASELINE_LR_BI = Config(classifier=LR, ngram=2)
+
+BASELINE_SVM_UNI = Config(classifier=SVM)
+BASELINE_SVM_BI = Config(classifier=SVM, ngram=2)
+
+BASELINE_RF_UNI = Config(classifier=RF)
+BASELINE_RF_BI = Config(classifier=RF, ngram=2)
+
+# configuration to use
+conf = BASELINE_RF_BI
+
+print (conf)
+
+classifier = Pipeline([('vectorizer', conf.vectorizer),
+                       ('transformer', conf.transformer),
+                       ('classifier', conf.classifier)])
 
 _ = classifier.fit(train_dataset.data, train_dataset.target)
 ############## Test Data ##########################
 test_dataset = load_files(container_path=test_data_path, encoding='latin-1')
 # vectors_test = vectorizer.transform(test_dataset.data)
 
+my_test_set = ['nfl is boring ...', 'christ is a prophet of God', 'the resident doctor was not on duty that day']
 ############## Predict ############################
 print ('Predicting Test data')
+
+predict1 = classifier.predict(my_test_set)
+print (train_dataset.target_names)
+print (predict1)
+
 predict = classifier.predict(test_dataset.data)
 
 import numpy as np
 print ('Accuracy: %f' % np.mean(predict == test_dataset.target))
-# print (metrics.f1_score(test_dataset.target, pred, average='macro'))
+print ('F1-score: %f' % metrics.f1_score(test_dataset.target, predict, average='macro'))
 
 
 
