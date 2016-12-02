@@ -48,8 +48,8 @@ Hyperparameters:
 from sklearn import svm
 _reg_constant = 2
 _kernel = 'linear' # rbf, linear, poly
-#SVM = svm.SVC(C=_reg_constant, kernel=_kernel, degree=3)
-SVM = svm.SVC()
+SVM = svm.SVC(C=_reg_constant, kernel=_kernel, degree=3)
+#SVM = svm.SVC()
 
 '''
 Random Forest
@@ -96,22 +96,19 @@ def train_classifier(train_vectors, train_dataset, ctype='nb'):
         
     return classifier
     
-#def preprocess(s):
+def preprocess(s):
+    words = s.lower().split()
+    # using nltk remove stop words
+    from nltk.corpus import stopwords
+    words_wo_stopwords = [word for word in words if word not in stopwords.words('english')]
+    # remove stemming
 
-# just to test
-# 'category integer id' for each sample in data is stored in 'target' attribute as list
-# print (train_dataset.data[1100])
-# print (train_dataset.target_names[train_dataset.target[1100]])
+    from nltk.stem import PorterStemmer
+    stemmer = PorterStemmer()
+    words_to_process = [stemmer.stem(word) for word in words_wo_stopwords]
 
-# ############### Extract features ##################
-
-# vectorizer, vectors = extract_features(dataset=train_dataset.data,
-#                                  _stop_words='english',
-#                                  vtype='tfidf') 
-# ############## Train Naive Bayes (Classifier) #####
-# classifier = train_classifier(train_vectors=vectors,
-#                               train_dataset=train_dataset,
-#                               ctype='nb')
+    print (words_to_process)
+    
 
 class Config:
     def __init__(self, classifier, vectorizer='count', ngram=1, stopwords=None, lowercase=False):
@@ -156,8 +153,6 @@ BASELINE_RF_BI = Config(classifier=RF, ngram=2)
 
 def plot(datasize, f1values_nb, f1values_lr, f1values_svm, f1values_rf):
     import matplotlib.pyplot as plt
-    #radius = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
-    #area = [3.14159, 12.56636, 28.27431, 50.26544, 78.53975, 113.09724]
     plt.plot(datasize, f1values_nb, label='NB', linewidth=1.5, marker='s')
     plt.plot(datasize, f1values_lr, label='LR', linestyle='--', marker='o', linewidth=1.5)
     plt.plot(datasize, f1values_svm, label='SVM', linestyle=':', marker='+', linewidth=1.5)
@@ -214,6 +209,12 @@ def classify_using(train_data_path, train_size, config, test_data_path):
         
 if __name__ == '__main__':
 
+
+    mbc_config = Config(classifier=SVM, vectorizer=tfidf)
+
+    preprocess('this is the first line and it is indeed the first line')
+    sys.exit('')
+    
     baseline_configs_uni = [BASELINE_NB_UNI, BASELINE_LR_UNI, BASELINE_SVM_UNI, BASELINE_RF_UNI]
     baseline_configs_bi = [BASELINE_NB_BI, BASELINE_LR_BI, BASELINE_SVM_BI, BASELINE_RF_BI]
     
