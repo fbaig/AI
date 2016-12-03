@@ -21,6 +21,7 @@ from time import time
 
 import numpy as np
 
+
 ############ Classifier Models #############
 '''
 Naive Bayes
@@ -48,7 +49,8 @@ Hyperparameters:
 from sklearn import svm
 _reg_constant = 2
 _kernel = 'linear' # rbf, linear, poly
-SVM = svm.SVC(C=_reg_constant, kernel=_kernel, degree=3)
+SVM = svm.SVC(kernel=_kernel)
+#SVM = svm.SVC(C=_reg_constant, kernel=_kernel, degree=3)
 #SVM = svm.SVC()
 
 '''
@@ -107,11 +109,12 @@ def preprocess(s):
     stemmer = PorterStemmer()
     words_to_process = [stemmer.stem(word) for word in words_wo_stopwords]
 
-    print (words_to_process)
+    return ' '.join(words_to_process)
+    #print (words_to_process)
     
 
 class Config:
-    def __init__(self, classifier, vectorizer='count', ngram=1, stopwords=None, lowercase=False):
+    def __init__(self, classifier, vectorizer='count', ngram=1, stopwords=None, lowercase=False, preprocessor=None):
         self.ngram = ngram
         self.stopwords = stopwords
         self.lowercase = lowercase
@@ -119,9 +122,9 @@ class Config:
         
         self.transformer = TfidfTransformer()
         if vectorizer == 'count':
-            self.vectorizer = CountVectorizer(lowercase=lowercase, stop_words=stopwords, ngram_range=(ngram, ngram))
+            self.vectorizer = CountVectorizer(lowercase=lowercase, stop_words=stopwords, ngram_range=(ngram, ngram), preprocessor=preprocessor)
         elif vectorizer == 'tfidf':
-            self.vectorizer = TfidfVectorizer(lowercase=lowercase, stop_words=stopwords, ngram_range=(ngram, ngram))
+            self.vectorizer = TfidfVectorizer(lowercase=lowercase, stop_words=stopwords, ngram_range=(ngram, ngram), preprocessor=preprocessor)
         else:
             self.vectorizer = None
 
@@ -164,7 +167,7 @@ def plot(datasize, f1values_nb, f1values_lr, f1values_svm, f1values_rf):
     plt.legend()
     plt.show()
 
-def classify_using(train_data_path, train_size, config, test_data_path):
+def classify_using(train_data_path, train_size, conf, test_data_path):
 
     train_dataset = load_files(container_path=train_data_path, encoding='latin-1')
     # maunally remove headers from training dataset
@@ -206,24 +209,15 @@ def classify_using(train_data_path, train_size, config, test_data_path):
     #print ('Accuracy: %f' % np.mean(predict == test_dataset.target))
     return metrics.f1_score(test_dataset.target, predict, average='macro')
         
-        
-if __name__ == '__main__':
 
-
-    mbc_config = Config(classifier=SVM, vectorizer=tfidf)
-
-    preprocess('this is the first line and it is indeed the first line')
-    sys.exit('')
-    
+def baseline():
     baseline_configs_uni = [BASELINE_NB_UNI, BASELINE_LR_UNI, BASELINE_SVM_UNI, BASELINE_RF_UNI]
     baseline_configs_bi = [BASELINE_NB_BI, BASELINE_LR_BI, BASELINE_SVM_BI, BASELINE_RF_BI]
     
 
     ############### Load Training Dataset #############
-    train_data_path = '/home/bmi-baig/Downloads/cse537-AI/AI/a3/selected_20NewsGroup/Training'
-    test_data_path = '/home/bmi-baig/Downloads/cse537-AI/AI/a3/selected_20NewsGroup/Test'
     train_dataset = load_files(container_path=train_data_path, encoding='latin-1')
-
+    
     dataset_sizes = []
     for i in range(100, len(train_dataset.data), 100):
         dataset_sizes.append(i)
@@ -251,80 +245,32 @@ if __name__ == '__main__':
 
     plot(dataset_sizes, classifier_f1_scores[0], classifier_f1_scores[1], classifier_f1_scores[2], classifier_f1_scores[3])
 
+if __name__ == '__main__':
 
 
-# # Display progress logs on stdout
-# logging.basicConfig(level=logging.INFO,
-#                     format='%(asctime)s %(levelname)s %(message)s')
-# # parse commandline arguments
-# op = OptionParser()
-# op.add_option("--lsa",
-#               dest="n_components", type="int",
-#               help="Preprocess documents with latent semantic analysis.")
-# op.add_option("--no-minibatch",
-#               action="store_false", dest="minibatch", default=True,
-#               help="Use ordinary k-means algorithm (in batch mode).")
-# op.add_option("--no-idf",
-#               action="store_false", dest="use_idf", default=True,
-#               help="Disable Inverse Document Frequency feature weighting.")
-# op.add_option("--use-hashing",
-#               action="store_true", default=False,
-#               help="Use a hashing feature vectorizer")
-# op.add_option("--n-features", type=int, default=10000,
-#               help="Maximum number of features (dimensions)"
-#                    " to extract from text.")
-# op.add_option("--verbose",
-#               action="store_true", dest="verbose", default=False,
-#               help="Print progress reports inside k-means algorithm.")
+    if len(sys.argv) == 1:
+        train_data_path = '/home/bmi-baig/Downloads/cse537-AI/AI/a3/selected_20NewsGroup/Training'
+        test_data_path = '/home/bmi-baig/Downloads/cse537-AI/AI/a3/selected_20NewsGroup/Test'
+    else:
+        train_data_path = sys.argv[1]
+        test_data_path = sys.argv[2]
+        
+    #SVM = svm.SVC(C=_reg_constant, kernel=_kernel, degree=3)
+    MBC = Config(classifier=svm.SVC(C=_reg_constant, kernel='linear', degree=100),
+                 ngram=1,
+                 lowercase=True,
+                 #stopwords='english',
+                 #preprocessor=preprocess,
+                 vectorizer='tfidf')
+    
+    train_dataset = load_files(container_path=train_data_path, encoding='latin-1')
+    
+    print (classify_using(train_data_path, len(train_dataset.data), MBC , test_data_path))
 
-# print(__doc__)
-# op.print_help()
+    # mbc_config = Config(classifier=SVM, vectorizer='tfidf')
 
-# (opts, args) = op.parse_args()
-# if len(args) > 0:
-#     op.error("this script takes no arguments.")
-#     sys.exit(1)
+    #print (preprocess('this is the first line and it is indeed the first line'))
+    # sys.exit('')
+    
+    
 
-# print("Extracting features from the training dataset using a sparse vectorizer")
-# t0 = time()
-# if opts.use_hashing:
-#     if opts.use_idf:
-#         # Perform an IDF normalization on the output of HashingVectorizer
-#         hasher = HashingVectorizer(n_features=opts.n_features,
-#                                    stop_words='english', non_negative=True,
-#                                    norm=None, binary=False)
-#         vectorizer = make_pipeline(hasher, TfidfTransformer())
-#     else:
-#         vectorizer = HashingVectorizer(n_features=opts.n_features,
-#                                        stop_words='english',
-#                                        non_negative=False, norm='l2',
-#                                        binary=False)
-# else:
-#     vectorizer = TfidfVectorizer(max_df=0.5, max_features=opts.n_features,
-#                                  min_df=2, stop_words='english',
-#                                  use_idf=opts.use_idf)
-# X = vectorizer.fit_transform(dataset.data)
-
-# print("done in %fs" % (time() - t0))
-# print("n_samples: %d, n_features: %d" % X.shape)
-# print()
-
-# if opts.n_components:
-#     print("Performing dimensionality reduction using LSA")
-#     t0 = time()
-#     # Vectorizer results are normalized, which makes KMeans behave as
-#     # spherical k-means for better results. Since LSA/SVD results are
-#     # not normalized, we have to redo the normalization.
-#     svd = TruncatedSVD(opts.n_components)
-#     normalizer = Normalizer(copy=False)
-#     lsa = make_pipeline(svd, normalizer)
-
-#     X = lsa.fit_transform(X)
-
-#     print("done in %fs" % (time() - t0))
-
-#     explained_variance = svd.explained_variance_ratio_.sum()
-#     print("Explained variance of the SVD step: {}%".format(
-#         int(explained_variance * 100)))
-
-#     print()
